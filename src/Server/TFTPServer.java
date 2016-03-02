@@ -1,10 +1,9 @@
 package Server;
 
 
-import java.net.DatagramSocket;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.net.SocketException;
+import java.io.IOException;
+import java.net.*;
+import java.nio.ByteBuffer;
 
 public class TFTPServer {
     public static final int TFTPPORT = 4970;
@@ -27,9 +26,11 @@ public class TFTPServer {
             server.start();
         } catch (SocketException e) {
             e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
-    private void start() throws SocketException {
+    private void start() throws IOException {
         byte[] buf= new byte[BUFSIZE];
 
 		/* Create socket */
@@ -42,6 +43,7 @@ public class TFTPServer {
         System.out.printf("Listening at port %d for new requests\n", TFTPPORT);
 
         while(true) {        /* Loop to handle various requests */
+
             final InetSocketAddress clientAddress=
                     receiveFrom(socket, buf);
             if (clientAddress == null) /* If clientAddress is null, an error occurred in receiveFrom()*/
@@ -49,13 +51,15 @@ public class TFTPServer {
 
             final StringBuffer requestedFile= new StringBuffer();
             final int reqtype = ParseRQ(buf, requestedFile);
+            System.out.println("Requested file : " + requestedFile.toString());
+            System.out.println("OPCODE: " + reqtype);
 
             new Thread() {
                 public void run() {
                     try {
                         DatagramSocket sendSocket= new DatagramSocket(0);
 
-                        System.out.printf("%s request for %s from %s using port %d\n",
+                        System.out.printf("%s request from %s using port %d\n",
                                 (reqtype == OP_RRQ)?"Read":"Write",
                                 clientAddress.getHostName(), clientAddress.getPort());
 
@@ -82,14 +86,30 @@ public class TFTPServer {
      * @return the Internet socket address of the client
      */
 
-    private InetSocketAddress receiveFrom(DatagramSocket socket, byte[] buf) {
-        return null;
+    private InetSocketAddress receiveFrom(DatagramSocket socket, byte[] buf) throws IOException {
+        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+        socket.receive(packet);
+        InetSocketAddress inet = new InetSocketAddress(packet.getAddress(), packet.getPort());
+        return inet;
     }
 
     private int ParseRQ(byte[] buf, StringBuffer requestedFile) {
-        return 0;
+        ByteBuffer wrap = ByteBuffer.wrap(buf);
+        short OPCODE = wrap.getShort();
+        requestedFile.append(new String(buf, 2, buf.length-2));
+        return OPCODE;
     }
 
+    /*
+     * Splitta strängen så vi får ut filename, opcode och mode.
+     */
+
     private void HandleRQ(DatagramSocket sendSocket, String string, int opRrq) {
+        String[] args = string.split("\0");
+        String fileName = args[0];
+        String mode = args[1];
+        short opVal = (short) opRrq;
+
+        
     }
 }
