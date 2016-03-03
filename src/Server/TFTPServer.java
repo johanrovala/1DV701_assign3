@@ -5,6 +5,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channel;
+import java.nio.channels.Channels;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -18,6 +22,7 @@ public class TFTPServer {
     public static final int OP_DAT = 3;
     public static final int OP_ACK = 4;
     public static final int OP_ERR = 5;
+    public static InetSocketAddress clientAddress;
 
     public static void main(String[] args) {
         if (args.length > 0) {
@@ -47,7 +52,7 @@ public class TFTPServer {
 
         while(true) {        /* Loop to handle various requests */
 
-            final InetSocketAddress clientAddress=
+            clientAddress=
                     receiveFrom(socket, buf);
             if (clientAddress == null) /* If clientAddress is null, an error occurred in receiveFrom()*/
                 continue;
@@ -114,15 +119,13 @@ public class TFTPServer {
         String fileName = args[0];
         String mode = args[1];
         short opVal = (short) opRrq;
-        byte[] respSize = new byte[BUFSIZE];
-        System.out.println(respSize.length);
+        //byte[] respSize = new byte[BUFSIZE-4];
         byte[] respData = Files.readAllBytes(Paths.get(fileName));
-        System.out.println(respData.length);
-
-        DatagramPacket sendPacket = new DatagramPacket(respData, respSize.length);
-        System.out.println(sendPacket.getAddress());
-        System.out.println(sendPacket.getPort());
-        sendSocket.connect(sendPacket.getAddress(), sendPacket.getPort());
-        sendSocket.send(sendPacket);
+        ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
+        wrap.putShort(opVal);
+        wrap.putShort((short) 1);
+        wrap.put(respData);
+        sendSocket.connect(clientAddress.getAddress(), clientAddress.getPort());
+        //sendSocket.send(sendPacket);
     }
 }
