@@ -2,6 +2,7 @@ package Server;
 
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -66,6 +67,7 @@ public class TFTPServer {
                 public void run() {
                     try {
                         DatagramSocket sendSocket= new DatagramSocket(0);
+                        sendSocket.connect(clientAddress);
 
                         System.out.printf("%s request from %s using port %d\n",
                                 (reqtype == OP_RRQ)?"Read":"Write",
@@ -119,13 +121,18 @@ public class TFTPServer {
         String fileName = args[0];
         String mode = args[1];
         short opVal = (short) opRrq;
-        //byte[] respSize = new byte[BUFSIZE-4];
-        byte[] respData = Files.readAllBytes(Paths.get(fileName));
+        byte[] buf = new byte[BUFSIZE-4];
+
+        FileInputStream fileInputStream = new FileInputStream(new File(fileName));
+        fileInputStream.read(buf);
+
         ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
         wrap.putShort(opVal);
-        wrap.putShort((short) 1);
-        wrap.put(respData);
-        sendSocket.connect(clientAddress.getAddress(), clientAddress.getPort());
+        wrap.putShort((short) 3);
+        wrap.put(buf);
+        // packet to be sent to client
+        DatagramPacket data = new DatagramPacket(wrap.array(), wrap.array().length);
+        sendSocket.send(data);
         //sendSocket.send(sendPacket);
     }
 }
