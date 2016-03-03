@@ -1,15 +1,18 @@
 package Server;
 
 
+import java.io.File;
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class TFTPServer {
     public static final int TFTPPORT = 4970;
     public static final int BUFSIZE = 516;
-    public static final String READDIR = "/home/username/read/";
-    public static final String WRITEDIR = "/home/username/write/";
+    public static final String READDIR = "src/read/";
+    public static final String WRITEDIR = "/Users/johanrovala/IdeaProjects/NetworkAssign3/src/write";
     public static final int OP_RRQ = 1;
     public static final int OP_WRQ = 2;
     public static final int OP_DAT = 3;
@@ -74,6 +77,8 @@ public class TFTPServer {
                         sendSocket.close();
                     } catch (SocketException e) {
                         e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 }
             }.start();
@@ -104,12 +109,20 @@ public class TFTPServer {
      * Splitta strängen så vi får ut filename, opcode och mode.
      */
 
-    private void HandleRQ(DatagramSocket sendSocket, String string, int opRrq) {
+    private void HandleRQ(DatagramSocket sendSocket, String string, int opRrq) throws IOException {
         String[] args = string.split("\0");
         String fileName = args[0];
         String mode = args[1];
         short opVal = (short) opRrq;
+        byte[] respSize = new byte[BUFSIZE];
+        System.out.println(respSize.length);
+        byte[] respData = Files.readAllBytes(Paths.get(fileName));
+        System.out.println(respData.length);
 
-        
+        DatagramPacket sendPacket = new DatagramPacket(respData, respSize.length);
+        System.out.println(sendPacket.getAddress());
+        System.out.println(sendPacket.getPort());
+        sendSocket.connect(sendPacket.getAddress(), sendPacket.getPort());
+        sendSocket.send(sendPacket);
     }
 }
