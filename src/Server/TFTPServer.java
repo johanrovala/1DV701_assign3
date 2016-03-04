@@ -92,6 +92,7 @@ public class TFTPServer {
             }.start();
         }
     }
+
     /**
      * Reads the first block of data, i.e., the request for action (read or write).
      * @param socket socket to read from
@@ -125,8 +126,8 @@ public class TFTPServer {
         byte[] buf = new byte[BUFSIZE-4];
         int blockNumber = 1;
         FileInputStream fileInputStream = new FileInputStream(new File(fileName));
-
-        if(mode != "octet"){
+        System.out.println(mode);
+        if(!mode.equals("octet")){
             SendError(sendSocket, buf);
         }
 
@@ -153,7 +154,7 @@ public class TFTPServer {
         if(comp == (short) blockNumber){
             return length < 512;
         }
-        return true;
+        return false;
     }
 
     private short getAcknowledgment(DatagramPacket packet){
