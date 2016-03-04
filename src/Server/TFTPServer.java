@@ -3,6 +3,7 @@ package Server;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -122,17 +123,55 @@ public class TFTPServer {
         String mode = args[1];
         short opVal = (short) opRrq;
         byte[] buf = new byte[BUFSIZE-4];
+        int blockNumber = 1;
+        FileInputStream fileInputStream = new FileInputStream(new File(fileName));
 
+        while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){
+            blockNumber++;
+        }
+
+        /*
         FileInputStream fileInputStream = new FileInputStream(new File(fileName));
         fileInputStream.read(buf);
 
         ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
-        wrap.putShort(opVal);
         wrap.putShort((short) 3);
+        wrap.putShort((short) 1 );
         wrap.put(buf);
+
         // packet to be sent to client
         DatagramPacket data = new DatagramPacket(wrap.array(), wrap.array().length);
         sendSocket.send(data);
-        //sendSocket.send(sendPacket);
+        */
+    }
+
+
+    private boolean ReadRQ(DatagramSocket sendSocket, byte[] buf, int blockNumber, FileInputStream fileInputStream) throws IOException {
+        int length = fileInputStream.read(buf);
+
+        ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
+        wrap.putShort((short) 3);
+        wrap.putShort((short) blockNumber );
+        wrap.put(buf);
+
+        DatagramPacket data = new DatagramPacket(wrap.array(), wrap.array().length);
+
+        sendSocket.send(data);
+        byte[] rec = new byte[BUFSIZE];
+        DatagramPacket receiveSocket = new DatagramPacket(rec, rec.length);
+        short comp = getAcknowledgment(receiveSocket);
+        if(comp == (short) blockNumber){
+            return length < 512;
+        }
+        return true;
+    }
+
+    private short getAcknowledgment(DatagramPacket packet){
+        ByteBuffer buffer = ByteBuffer.wrap(packet.getData());
+        if(buffer.getShort() == OP_ERR){
+            System.out.println("MADDAFACKA");
+            return -1;
+        }
+        return buffer.getShort();
     }
 }
