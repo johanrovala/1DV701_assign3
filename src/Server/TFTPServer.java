@@ -136,6 +136,9 @@ public class TFTPServer {
         }
     }
 
+    // just nu så funkar inte acknowledgement packet. Vi får samma problem som tidigare att
+    // samma packet skickas allt för många gånger dvs chapter 11.
+    // när vi får transfer timed out så får vi ut sout-komm i ReadRQ. 
 
     private boolean ReadRQ(DatagramSocket sendSocket, byte[] buf, int blockNumber, FileInputStream fileInputStream) throws IOException {
         int length = fileInputStream.read(buf);
@@ -152,6 +155,7 @@ public class TFTPServer {
         DatagramPacket receiveSocket = new DatagramPacket(rec, rec.length);
         short comp = getAcknowledgment(receiveSocket);
         if(comp == (short) blockNumber){
+            System.out.println("comp = blockNumber");
             return length < 512;
         }
         return false;
