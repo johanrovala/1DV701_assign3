@@ -126,23 +126,13 @@ public class TFTPServer {
         int blockNumber = 1;
         FileInputStream fileInputStream = new FileInputStream(new File(fileName));
 
+        if(mode != "octet"){
+            SendError(sendSocket, buf);
+        }
+
         while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){
             blockNumber++;
         }
-
-        /*
-        FileInputStream fileInputStream = new FileInputStream(new File(fileName));
-        fileInputStream.read(buf);
-
-        ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
-        wrap.putShort((short) 3);
-        wrap.putShort((short) 1 );
-        wrap.put(buf);
-
-        // packet to be sent to client
-        DatagramPacket data = new DatagramPacket(wrap.array(), wrap.array().length);
-        sendSocket.send(data);
-        */
     }
 
 
@@ -173,5 +163,16 @@ public class TFTPServer {
             return -1;
         }
         return buffer.getShort();
+    }
+
+    private void SendError(DatagramSocket sendSocket, byte[] buf) throws IOException {
+        ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
+        wrap.putShort((short) 5);
+        wrap.putShort((short) 4);
+        buf = new String("Invalid mode").getBytes();
+        wrap.put(buf);
+
+        DatagramPacket errorPacket = new DatagramPacket(wrap.array(), wrap.array().length);
+        sendSocket.send(errorPacket);
     }
 }
