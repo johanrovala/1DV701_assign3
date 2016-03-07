@@ -69,6 +69,7 @@ public class TFTPServer {
                     try {
                         DatagramSocket sendSocket= new DatagramSocket(0);
                         sendSocket.connect(clientAddress);
+                        System.out.println("Connection established with " + clientAddress.getHostName() + " " + clientAddress.getPort());
 
                         System.out.printf("%s request from %s using port %d\n",
                                 (reqtype == OP_RRQ)?"Read":"Write",
@@ -87,6 +88,8 @@ public class TFTPServer {
                     } catch (SocketException e) {
                         e.printStackTrace();
                     } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
@@ -119,7 +122,7 @@ public class TFTPServer {
      * Splitta strängen så vi får ut filename, opcode och mode.
      */
 
-    private void HandleRQ(DatagramSocket sendSocket, String string, int opRrq) throws IOException {
+    private void HandleRQ(DatagramSocket sendSocket, String string, int opRrq) throws IOException, InterruptedException {
         String[] args = string.split("\0");
         String fileName = args[0];
         String mode = args[1];
@@ -131,7 +134,8 @@ public class TFTPServer {
 
         if(!mode.equals("octet")){ SendError(sendSocket, buf);}
 
-        while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){ blockNumber++; }
+        while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){ blockNumber++;
+        Thread.sleep(1000);}
     }
 
     private boolean ReadRQ(DatagramSocket sendSocket, byte[] buf, int blockNumber, FileInputStream fileInputStream) throws IOException {
@@ -153,6 +157,7 @@ public class TFTPServer {
         short comp = getAcknowledgment(receivePacket);
 
         if(comp == (short) blockNumber){
+            System.out.println("comp: " + comp + " block: " + blockNumber);
             System.out.println("Length of sent packet: " + length);
             return length < 512;
         }
