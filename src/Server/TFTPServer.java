@@ -18,7 +18,7 @@ public class TFTPServer {
     public static final int TFTPPORT = 4970;
     public static final int BUFSIZE = 516;
     public static final String READDIR = "src/read/";
-    public static final String WRITEDIR = "/Users/johanrovala/IdeaProjects/NetworkAssign3/src/write";
+    public static final String WRITEDIR = "/Users/MarkusAlshraydeh/IdeaProjects/NetworkAssign3/src/write";
     public static final int OP_RRQ = 1;
     public static final int OP_WRQ = 2;
     public static final int OP_DAT = 3;
@@ -153,18 +153,28 @@ public class TFTPServer {
         sendSocket.send(data);
         byte[] rec = new byte[BUFSIZE];
         DatagramPacket receiveSocket = new DatagramPacket(rec, rec.length);
-        short comp = getAcknowledgment(receiveSocket);
+
+       // short comp = getAcknowledgment(receiveSocket);
+
+        if(buf[1] == OP_DAT){
+            getAcknowledgment(receiveSocket);
+            return length < 512; // confirms att det är det sista packetet
+        }
+        return false;
+        /*
+
         if(comp == (short) blockNumber){
             System.out.println("comp = blockNumber");
             return length < 512;
         }
-        return false;
+        */
     }
 
-    private short getAcknowledgment(DatagramPacket packet){
+    private short getAcknowledgment(DatagramPacket packet){     // A method that makes sure that makes sure that the packet is
+                                                                // devided and sent 5 times?.
         ByteBuffer buffer = ByteBuffer.wrap(packet.getData());
         if(buffer.getShort() == OP_ERR){
-            System.out.println("MADDAFACKA");
+            System.out.println("Acknowledgment MADDAFACKA");
             return -1;
         }
         return buffer.getShort();
