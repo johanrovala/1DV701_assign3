@@ -82,6 +82,7 @@ public class TFTPServer {
                             requestedFile.insert(0, WRITEDIR);
                             HandleRQ(sendSocket,requestedFile.toString(),OP_WRQ);
                         }
+                        System.out.println("Should close socket now");
                         sendSocket.close();
                     } catch (SocketException e) {
                         e.printStackTrace();
@@ -138,7 +139,7 @@ public class TFTPServer {
 
         ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
         wrap.putShort((short) OP_DAT);
-        wrap.putShort((short) blockNumber );
+        wrap.putShort((short) blockNumber);
         wrap.put(buf);
 
 
@@ -152,7 +153,7 @@ public class TFTPServer {
         short comp = getAcknowledgment(receivePacket);
 
         if(comp == (short) blockNumber){
-            System.out.println(length);
+            System.out.println("Length of sent packet: " + length);
             return length < 512;
         }
         return true;
@@ -165,7 +166,7 @@ public class TFTPServer {
             System.out.println("Something went wrong");
             return -1;
         }
-        System.out.println(buffer.get(1));
+        System.out.println("Acknowledgment code: " + buffer.get(1));
         return buffer.getShort();
     }
 
