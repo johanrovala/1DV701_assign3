@@ -127,46 +127,45 @@ public class TFTPServer {
         int blockNumber = 1;
         FileInputStream fileInputStream = new FileInputStream(new File(fileName));
         System.out.println(mode);
-        if(!mode.equals("octet")){
-            SendError(sendSocket, buf);
-        }
 
-        while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){
-            blockNumber++;
-        }
+        if(!mode.equals("octet")){ SendError(sendSocket, buf);}
+
+        while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){ blockNumber++; }
     }
-
-    // just nu så funkar inte acknowledgement packet. Vi får samma problem som tidigare att
-    // samma packet skickas allt för många gånger dvs chapter 11.
-    // när vi får transfer timed out så får vi ut sout-komm i ReadRQ. 
 
     private boolean ReadRQ(DatagramSocket sendSocket, byte[] buf, int blockNumber, FileInputStream fileInputStream) throws IOException {
         int length = fileInputStream.read(buf);
 
         ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
-        wrap.putShort((short) 3);
+        wrap.putShort((short) OP_DAT);
         wrap.putShort((short) blockNumber );
         wrap.put(buf);
+
 
         DatagramPacket data = new DatagramPacket(wrap.array(), wrap.array().length);
 
         sendSocket.send(data);
         byte[] rec = new byte[BUFSIZE];
-        DatagramPacket receiveSocket = new DatagramPacket(rec, rec.length);
-        short comp = getAcknowledgment(receiveSocket);
+
+        DatagramPacket receivePacket = new DatagramPacket(rec, rec.length);
+        sendSocket.receive(receivePacket);
+        short comp = getAcknowledgment(receivePacket);
+
         if(comp == (short) blockNumber){
-            System.out.println("comp = blockNumber");
+            System.out.println(length);
             return length < 512;
         }
-        return false;
+        return true;
     }
 
-    private short getAcknowledgment(DatagramPacket packet){
+
+    private short getAcknowledgment(DatagramPacket packet) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(packet.getData());
         if(buffer.getShort() == OP_ERR){
-            System.out.println("MADDAFACKA");
+            System.out.println("Something went wrong");
             return -1;
         }
+        System.out.println(buffer.get(1));
         return buffer.getShort();
     }
 
