@@ -1,10 +1,7 @@
 package Server;
 
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
@@ -111,6 +108,14 @@ public class TFTPServer {
         return inet;
     }
 
+    /**
+     * Parses the Request sent from the client and returns the Operation code.
+     * @param buf
+     * @param requestedFile
+     * @return The Operation Code from requestedFile
+     */
+
+
     private int ParseRQ(byte[] buf, StringBuffer requestedFile) {
         ByteBuffer wrap = ByteBuffer.wrap(buf);
         short OPCODE = wrap.getShort();
@@ -118,8 +123,14 @@ public class TFTPServer {
         return OPCODE;
     }
 
-    /*
-     * Splitta strängen så vi får ut filename, opcode och mode.
+    /**
+     * Reads the requested file and keeps sending it back to the client until
+     * the last packet reaches a size smaller than 512.
+     * @param sendSocket
+     * @param string
+     * @param opRrq
+     * @throws IOException
+     * @throws InterruptedException
      */
 
     private void HandleRQ(DatagramSocket sendSocket, String string, int opRrq) throws IOException, InterruptedException {
@@ -129,16 +140,41 @@ public class TFTPServer {
         short opVal = (short) opRrq;
         byte[] buf = new byte[BUFSIZE-4];
         int blockNumber = 1;
-        FileInputStream fileInputStream = new FileInputStream(new File(fileName));
         System.out.println(mode);
 
         if(!mode.equals("octet")){ SendError(sendSocket, buf);}
+        if (opVal == 1){
+            FileInputStream fileInputStream = new FileInputStream(new File(fileName));
+            while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){ blockNumber++;}
+        }
+        else if (opVal == 1){
+            FileOutputStream fileOutputStream = new FileOutputStream(string);
+            WriteRQ(sendSocket, buf, blockNumber, fileOutputStream);
+        }
+        else{
+            SendError(sendSocket, buf);
+        }
 
-        while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){ blockNumber++;
-        Thread.sleep(1000);}
     }
 
-    private boolean ReadRQ(DatagramSocket sendSocket, byte[] buf, int blockNumber, FileInputStream fileInputStream) throws IOException {
+    private boolean WriteRQ(DatagramSocket receiveSocket, byte[] buf, int blockNumber, FileOutputStream fileOutputStream) throws IOException {
+        fileOutputStream.write(buf);
+
+        return true;
+    }
+
+    /**
+     * Sends the Read Request back to the Client.
+     * @param sendSocket
+     * @param buf
+     * @param blockNumber
+     * @param fileInputStream
+     * @return
+     * @throws IOException
+     * @throws InterruptedException
+     */
+
+    private boolean ReadRQ(DatagramSocket sendSocket, byte[] buf, int blockNumber, FileInputStream fileInputStream) throws IOException, InterruptedException {
         int length = fileInputStream.read(buf);
 
         ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
@@ -156,14 +192,41 @@ public class TFTPServer {
         sendSocket.receive(receivePacket);
         short comp = getAcknowledgment(receivePacket);
 
+
+        /*
+         * Should retransmit if no acknowledgment packet is sent
+         */
+
+        while (comp == 0){
+            Thread.sleep(1000);
+            blockNumber--;
+            System.out.println("No Acknowledgment packet trying to send again.");
+            ReadRQ(sendSocket, buf, blockNumber, fileInputStream);
+        }
+
         if(comp == (short) blockNumber){
             System.out.println("comp: " + comp + " block: " + blockNumber);
             System.out.println("Length of sent packet: " + length);
             return length < 512;
         }
+        /*
+         * Should retransmit if acknowledgment and blocknumber are not equal
+         * add counter to make sure that
+         */
+
+        else {
+            blockNumber--;
+            ReadRQ(sendSocket, buf, blockNumber, fileInputStream);
+        }
         return true;
     }
 
+    /**
+     * Gets the acknowlegdement packet from the client.
+     * @param packet
+     * @return short
+     * @throws IOException
+     */
 
     private short getAcknowledgment(DatagramPacket packet) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(packet.getData());
