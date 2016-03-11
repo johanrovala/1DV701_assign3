@@ -14,8 +14,8 @@ import java.nio.file.Paths;
 public class TFTPServer {
     public static final int TFTPPORT = 4970;
     public static final int BUFSIZE = 516;
-    public static final String READDIR = "src/read/";
-    public static final String WRITEDIR = "/Users/johanrovala/IdeaProjects/NetworkAssign3/src/write";
+    public static final String READDIR = "/Users/johanrovala/IdeaProjects/NetworkAssign3/src/read/";
+    public static final String WRITEDIR = "/Users/johanrovala/IdeaProjects/NetworkAssign3/src/write/";
     public static final int OP_RRQ = 1;
     public static final int OP_WRQ = 2;
     public static final int OP_DAT = 3;
@@ -139,28 +139,58 @@ public class TFTPServer {
         String mode = args[1];
         short opVal = (short) opRrq;
         byte[] buf = new byte[BUFSIZE-4];
-        int blockNumber = 1;
-        System.out.println(mode);
+        int blockNumber = 0;
 
-        if(!mode.equals("octet")){ SendError(sendSocket, buf);}
-        if (opVal == 1){
-            FileInputStream fileInputStream = new FileInputStream(new File(fileName));
-            while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){ blockNumber++;}
+        if(!mode.equals("octet")){
+            SendError(sendSocket, buf, 0);
+            System.out.println("User tried to Read file with invalid mode");
         }
-        else if (opVal == 1){
-            FileOutputStream fileOutputStream = new FileOutputStream(string);
-            WriteRQ(sendSocket, buf, blockNumber, fileOutputStream);
+        else if (mode.equals("octet")){
+
+            if (opVal == 1){
+                if(!new File(fileName).getAbsolutePath().contains("/read/")){
+                    SendError(sendSocket, buf, 2);
+                }
+                else if (!new File(fileName).exists()){
+                    SendError(sendSocket, buf, 1);
+                }
+                else{
+                    blockNumber++;
+                    FileInputStream fileInputStream = new FileInputStream(new File(fileName));
+                    while(!ReadRQ(sendSocket, buf, blockNumber, fileInputStream)){
+                        blockNumber++;
+                        Thread.sleep(1000);
+                    }
+                }
+            }
+            else if (opVal == 2){
+                if(new File(fileName).exists()){
+                    SendError(sendSocket, buf, 6);
+                }
+                FileOutputStream fileOutputStream = new FileOutputStream(fileName, true);
+                while(!WriteRQ(sendSocket, buf, blockNumber, fileName, fileOutputStream)){blockNumber++;}
+            }
         }
         else{
-            SendError(sendSocket, buf);
+            SendError(sendSocket, buf, 0);
         }
 
     }
 
-    private boolean WriteRQ(DatagramSocket receiveSocket, byte[] buf, int blockNumber, FileOutputStream fileOutputStream) throws IOException {
-        fileOutputStream.write(buf);
+    private boolean WriteRQ(DatagramSocket receiveSocket, byte[] buf, int blockNumber, String fileName, FileOutputStream fileOutputStream) throws IOException {
 
-        return true;
+        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+        sendAckowledgment(receiveSocket, blockNumber);
+        receiveSocket.receive(packet);
+        int length = packet.getLength();
+
+
+        fileOutputStream.write(packet.getData(), 4, packet.getLength()-4);
+        if(length < 512){
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -184,7 +214,6 @@ public class TFTPServer {
 
 
         DatagramPacket data = new DatagramPacket(wrap.array(), wrap.array().length);
-
         sendSocket.send(data);
         byte[] rec = new byte[BUFSIZE];
 
@@ -238,11 +267,31 @@ public class TFTPServer {
         return buffer.getShort();
     }
 
-    private void SendError(DatagramSocket sendSocket, byte[] buf) throws IOException {
+    private void sendAckowledgment(DatagramSocket sendSocket, int blockNumber) throws IOException {
+        ByteBuffer wrap = ByteBuffer.allocate(4);
+        wrap.putShort((short)4);
+        wrap.putShort((short) blockNumber);
+
+        DatagramPacket ackPacket = new DatagramPacket(wrap.array(), wrap.array().length);
+        sendSocket.send(ackPacket);
+    }
+
+    private void SendError(DatagramSocket sendSocket, byte[] buf, int i) throws IOException {
         ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
         wrap.putShort((short) 5);
-        wrap.putShort((short) 4);
-        buf = new String("Invalid mode").getBytes();
+        wrap.putShort((short) i);
+
+        String errorMessage = "";
+        if (i == 0) {
+            errorMessage = "Not Defined error";
+        }  if (i == 1) {
+            errorMessage = "File Not Found";
+        } if (i == 2) {
+            errorMessage = "Access Violation";
+        } if (i == 6) {
+            errorMessage = "File Already exist";
+        }
+        buf = new String(errorMessage).getBytes();
         wrap.put(buf);
 
         DatagramPacket errorPacket = new DatagramPacket(wrap.array(), wrap.array().length);
