@@ -177,6 +177,17 @@ public class TFTPServer {
 
     }
 
+    /**
+     * Write the request data sent from the Client.
+     * @param receiveSocket
+     * @param buf
+     * @param blockNumber
+     * @param fileName
+     * @param fileOutputStream
+     * @return
+     * @throws IOException
+     */
+
     private boolean WriteRQ(DatagramSocket receiveSocket, byte[] buf, int blockNumber, String fileName, FileOutputStream fileOutputStream) throws IOException {
 
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
@@ -226,11 +237,15 @@ public class TFTPServer {
          * Should retransmit if no acknowledgment packet is sent
          */
 
-        while (comp == 0){
-            Thread.sleep(1000);
+        if(comp == 0){
             blockNumber--;
-            System.out.println("No Acknowledgment packet trying to send again.");
-            ReadRQ(sendSocket, buf, blockNumber, fileInputStream);
+            int count = 0;
+            while (count < 10){
+                Thread.sleep(1000);
+                System.out.println("Awaiting acknowledgement packet");
+                count++;
+                comp = getAcknowledgment(receivePacket);
+            }
         }
 
         if(comp == (short) blockNumber){
@@ -240,12 +255,12 @@ public class TFTPServer {
         }
         /*
          * Should retransmit if acknowledgment and blocknumber are not equal
-         * add counter to make sure that
+         *
          */
 
         else {
             blockNumber--;
-            ReadRQ(sendSocket, buf, blockNumber, fileInputStream);
+            comp = getAcknowledgment(receivePacket);
         }
         return true;
     }
@@ -267,6 +282,13 @@ public class TFTPServer {
         return buffer.getShort();
     }
 
+    /**
+     * Sends acknowledgment back to the client.
+     * @param sendSocket
+     * @param blockNumber
+     * @throws IOException
+     */
+
     private void sendAckowledgment(DatagramSocket sendSocket, int blockNumber) throws IOException {
         ByteBuffer wrap = ByteBuffer.allocate(4);
         wrap.putShort((short)4);
@@ -276,6 +298,14 @@ public class TFTPServer {
         sendSocket.send(ackPacket);
     }
 
+    /**
+     * Sends the different error packets supported by our Server.
+     * @param sendSocket
+     * @param buf
+     * @param i
+     * @throws IOException
+     */
+    
     private void SendError(DatagramSocket sendSocket, byte[] buf, int i) throws IOException {
         ByteBuffer wrap = ByteBuffer.allocate(BUFSIZE);
         wrap.putShort((short) 5);
